@@ -102,7 +102,7 @@ def lsf_get_job_details(jid):
 		statdict['Command'] = statdict['Command'].replace('"',r'\"') #must re-escape command string
 	return statdict
 
-def lsf_jobs_submit(cmds,outfile,queue='short_serial',bsub_flags='',jobname_base=None, prereq_names=None, num_batches=None, batch_size=None, sh_tmp=os.path.expanduser('~')+'/tmp/sh'):
+def lsf_jobs_submit(cmds,outfile,queue='short_serial',bsub_flags='',jobname_base=None, prereq_names=None, num_batches=None, batch_size=None, sh_tmp=os.path.expanduser('~')+'/tmp/sh',force_source=True):
     '''given a list of bash-runnable commands (strings), submits to indicated queue, tags each submission with <bsub_flags>
 	(-R resource requirements, e.g.)
 
@@ -164,7 +164,7 @@ def lsf_jobs_submit(cmds,outfile,queue='short_serial',bsub_flags='',jobname_base
         else:
             jname = None
             execfull += ' -o %s.lsflog' % random_filename(prefix='noName-')
-            
+
         if ';' in execstr or len(execstr) > 1024 or batch_size:
             if jname:
                 sh_tmp_path = os.path.join(sh_tmp,jobname_base)
@@ -180,6 +180,10 @@ def lsf_jobs_submit(cmds,outfile,queue='short_serial',bsub_flags='',jobname_base
             open(sh_name,'w').write('#!/usr/bin/env sh\nset -e\n'+execstr.replace('\\"','"'))
             os.system('chmod +x '+sh_name)
             execstr = sh_name
+
+        if force_source:
+            execstr = 'source ~/.bashrc; '+execstr
+        
             
         if prereq_names:
             if isinstance(prereq_names,str):

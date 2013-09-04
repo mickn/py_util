@@ -20,6 +20,11 @@ spectrum = ['#FF%s%s00' % (i,j) for i in dig for j in dig] + ['#%s%sFF00' % (i,j
 
 spectrum_noUV = ['#FF%s%s00' % (i,j) for i in dig for j in dig] + ['#%s%sFF00' % (i,j) for i in dig[::-1] for j in dig[::-1]] + ['#00FF%s%s' % (i,j) for i in dig for j in dig] +['#00%s%sFF' % (i,j) for i in dig[::-1] for j in dig[::-1]]
 
+def to_greyscale(hex_str):
+    '''takes a hex color string ("#FF0000") and converts to grayscale'''
+    col = int(hex_str.replace('#','0x'),16)
+    return hex((((((((col >> 16) & 0xff)*76) + (((col >> 8) & 0xff)*150) +((col & 0xff)*29)) >> 8)) << 16) |(((((((col >> 16) & 0xff)*76) + (((col >> 8) & 0xff)*150) + ((col & 0xff)*29)) >> 8)) << 8) | ((((((col >> 16) & 0xff)*76) + (((col >> 8) & 0xff)*150) + ((col & 0xff)*29)) >> 8))).replace('0x','#')
+
 def subspectrum(numcol,reversed=False,noUV=False):
     '''given a number of colors desired (<= len spectrum)
     returns a list of hex codes for colors'''
