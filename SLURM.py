@@ -2,6 +2,7 @@
 '''
 
 import os,sys,re,time,random,string,subprocess
+from glob import glob
 
 def random_filename(chars=string.hexdigits, length=8, prefix='', suffix='', \
                     verify=True, attempts=10, chosen=[]):
@@ -136,6 +137,19 @@ def get_status_counts(jobids=None):
 
     return dict(status_counts)
 
+def last_job_output(jobid,outdir,stdstream='out'):
+    globstr = os.path.join(outdir,'*%s*.%s' % (jobid,stdstream))
+    cand = glob(os.path.join(outdir,'*%s*.%s' % (jobid,stdstream)))
+    if len(cand) == 1:
+        try:
+            return open(cand[0]).readlines()[-1]
+        except:
+            print >> sys.stderr, 'no output for %s' % cand[0]
+            return ''
+    else:
+        print >> sys.stderr, 'unique output stream for %s not found: %s' % (globstr,cand)
+        return None
+
 def wait_for_jobs(jobsdict,restart_partition='general',sleeptime = 20,restart_z=None,restart_stragglers_after=0.75,kill_if_all_ssusp=False):
     '''loops checking status until no jobs are waiting or running / all are finished.
     wait/run states:
@@ -187,6 +201,10 @@ def wait_for_jobs(jobsdict,restart_partition='general',sleeptime = 20,restart_z=
     print >> sys.stderr, '\ncompleted iteration in',str(datetime.timedelta(seconds=int(time.time() - t)))
             
 def run_until_done(to_run_dict,jobname_base,scriptdir, runtime,mem, num_batches, partition='general' ,force_source=True,MAX_RETRY=3):
+    '''given to-run dictionary as populated by run_safe.add_cmd (see run_safe.py in py_util) and scheduling parameters
+    submits jobs that have not yet completed per run_safe .done files until all jobs finish or until identical job lists are submitted MAX_RETRY times
+    see jobs_submit and wait_for_jobs in this module for more details
+    '''
     from run_safe import unfinished_cmds
     cmds = unfinished_cmds(to_run_dict)
     
