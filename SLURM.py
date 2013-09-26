@@ -4,6 +4,8 @@
 import os,sys,re,time,random,string,subprocess
 from glob import glob
 
+MAX_RETRY = 3
+
 def random_filename(chars=string.hexdigits, length=8, prefix='', suffix='', \
                     verify=True, attempts=10, chosen=[]):
     for attempt in range(attempts):
@@ -27,7 +29,7 @@ def flatten_list(li):
 
     return flat_li
 
-def slurm_script(cmd,jobname,scriptdir, runtime=1440,mem=4096,outdir=None,partition='general'):
+def slurm_script(cmd,jobname,scriptdir, runtime=1440,mem=4096,outdir=None,partition='general',**kwargs):
     '''takes one or more shell executable commands and produces a slurm srun/sbatch script
     if cmd is a list, will produce a multistep script accordingly
     runtime is max run duration IN MINUTES (e.g. 60 = 1h; 1440 = 1d; 10080 = 1w)
@@ -49,6 +51,8 @@ def slurm_script(cmd,jobname,scriptdir, runtime=1440,mem=4096,outdir=None,partit
     ss_name = os.path.join(outdir,'%s.slurm.sh' % jobname)
 
     ss_head = '#!/bin/bash\n#SBATCH -J %s\n#SBATCH -n 1\n#SBATCH -t %s\n#SBATCH -p %s\n#SBATCH --mem-per-cpu=%s\n#SBATCH -o %s.out\n#SBATCH -e %s.err' % (ss_name,runtime,partition,mem,outstr,outstr)
+    for k,v in kwargs:
+        ss_head += '\n#SBATCH --%s=%s' % (k,v)
     ss_body = ss_head+cmd
 
     fh = open(ss_name,'w')
@@ -57,9 +61,10 @@ def slurm_script(cmd,jobname,scriptdir, runtime=1440,mem=4096,outdir=None,partit
 
     return ss_name
     
-def jobs_submit(cmds,jobname_base,scriptdir, runtime=1440,mem=4096, num_batches=None, batch_size=None,partition='general',outdir=None ,force_source=True):
+def jobs_submit(cmds,jobname_base,scriptdir, runtime=1440,mem=4096, num_batches=None, batch_size=None,partition='general',outdir=None ,force_source=False,**kwargs):
     '''takes a list of commands (which may themselves be lists; see list handling of cmd in slurm_script())
     writes slurm srun scripts and submits these, returning a jobsdict { <jobid> : <slurmscript> }
+    kwargs is passed uninspected and unmolested to slurm_script, key/value pairs will be #SBATCH --<key>=<value> lines in resulting script
     '''
 
     if isinstance(cmds,str):
@@ -81,7 +86,7 @@ def jobs_submit(cmds,jobname_base,scriptdir, runtime=1440,mem=4096, num_batches=
     print >> sys.stderr,'Adding jobs'
     for cmd in cmds:
         if force_source:
-            ['source ~/.bashrc',cmd]
+            cmd = ['source ~/.bashrc',cmd]
             
         print >> sys.stderr,'.',
         
@@ -90,7 +95,7 @@ def jobs_submit(cmds,jobname_base,scriptdir, runtime=1440,mem=4096, num_batches=
         jobname = random_filename(prefix=jobname_base+'-',chosen=chosen)
         chosen.append(jobname)
         
-        ss_name = slurm_script(cmd,jobname,scriptdir, runtime,mem,outdir,partition)
+        ss_name = slurm_script(cmd,jobname,scriptdir, runtime,mem,outdir,partition,**kwargs)
 
         match = None
         while match is None:
@@ -123,6 +128,15 @@ def get_jobs_status(jobids=None,toplevel=True):
                 jobs_status[d['JobID']] = d
 
     return jobs_status
+
+def previous_submissions(scriptdir,runsafe_script):
+    '''
+    indended only for run_safe submissions (run_safe.py "runsafe_script" donefile)
+    returns number of submission attempts as read from slurm.sh scripts in scriptdir
+    '''
+    prev_sub = subprocess.Popen('grep -l "%s" %s' % (runsafe_script,os.path.join(scriptdir,'*.slurm.sh')),shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout.readlines()
+    return prev_sub
+    
 
 def get_status_counts(jobids=None):
     '''returns the counts of all jobs by status category
@@ -200,10 +214,11 @@ def wait_for_jobs(jobsdict,restart_partition='general',sleeptime = 20,restart_z=
 
     print >> sys.stderr, '\ncompleted iteration in',str(datetime.timedelta(seconds=int(time.time() - t)))
             
-def run_until_done(to_run_dict,jobname_base,scriptdir, runtime,mem, num_batches, partition='general' ,force_source=True,MAX_RETRY=3):
+def run_until_done(to_run_dict,jobname_base,scriptdir, runtime,mem, num_batches, partition='general' ,force_source=False,MAX_RETRY=MAX_RETRY,**kwargs):
     '''given to-run dictionary as populated by run_safe.add_cmd (see run_safe.py in py_util) and scheduling parameters
     submits jobs that have not yet completed per run_safe .done files until all jobs finish or until identical job lists are submitted MAX_RETRY times
     see jobs_submit and wait_for_jobs in this module for more details
+    kwargs go to jobs_submit; see jobs_submit and slurm_script for handling of additional arguments
     '''
     from run_safe import unfinished_cmds
     cmds = unfinished_cmds(to_run_dict)
@@ -221,7 +236,7 @@ def run_until_done(to_run_dict,jobname_base,scriptdir, runtime,mem, num_batches,
                 retries += 1
         last_cmds = cmds
         
-        jobsdict = jobs_submit(cmds,jobname_base,scriptdir, runtime,mem, num_batches,partition=partition ,force_source=force_source)
+        jobsdict = jobs_submit(cmds,jobname_base,scriptdir, runtime,mem, num_batches,partition=partition ,force_source=force_source, **kwargs)
         time.sleep(20)
         wait_for_jobs(jobsdict,restart_partition=partition,sleeptime = 20)
         time.sleep(20)
