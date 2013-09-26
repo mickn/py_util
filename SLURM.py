@@ -51,7 +51,7 @@ def slurm_script(cmd,jobname,scriptdir, runtime=1440,mem=4096,outdir=None,partit
     ss_name = os.path.join(outdir,'%s.slurm.sh' % jobname)
 
     ss_head = '#!/bin/bash\n#SBATCH -J %s\n#SBATCH -n 1\n#SBATCH -t %s\n#SBATCH -p %s\n#SBATCH --mem-per-cpu=%s\n#SBATCH -o %s.out\n#SBATCH -e %s.err' % (ss_name,runtime,partition,mem,outstr,outstr)
-    for k,v in kwargs:
+    for k,v in kwargs.items():
         ss_head += '\n#SBATCH --%s=%s' % (k,v)
     ss_body = ss_head+cmd
 
