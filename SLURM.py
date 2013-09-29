@@ -129,11 +129,14 @@ def get_jobs_status(jobids=None,toplevel=True):
 
     return jobs_status
 
-def previous_submissions(scriptdir,runsafe_script):
+def previous_submissions(scriptdir,runsafe_script,check_done=True):
     '''
     indended only for run_safe submissions (run_safe.py "runsafe_script" donefile)
     returns number of submission attempts as read from slurm.sh scripts in scriptdir
     '''
+    if check_done:
+        if os.path.exists(runsafe_script.rsplit('.',1)[0]+'.done'):
+            return []
     prev_sub = subprocess.Popen('grep -l "%s" %s' % (runsafe_script,os.path.join(scriptdir,'*.slurm.sh')),shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE).stdout.readlines()
     return prev_sub
     
