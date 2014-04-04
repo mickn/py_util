@@ -61,6 +61,7 @@ def violin_plot(ax,data,pos, bp=False):
         m = k.dataset.min() #lower bound of violin
         M = k.dataset.max() #upper bound of violin
         x = arange(m,M,(M-m)/100.) # support for violin
+        #k.set_bandwidth(bw_method=k.factor / 2.)
         v = k.evaluate(x) #violin profile (density curve)
         v = v/v.max()*w #scaling the violin to the available space
         ax.fill_betweenx(x,p,v+p,facecolor='y',alpha=0.3)

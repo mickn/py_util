@@ -2,7 +2,7 @@
 
 import os,sys
 
-def safe_script(cmd,donefile,donesuffix='.done',scriptfile=None,force_write=False,force_source=False):
+def safe_script(cmd,donefile,donesuffix='.done',scriptfile=None,force_write=True,force_source=False):
     if scriptfile is None:
         scriptfile = donefile+'.sh'
     if os.path.exists(scriptfile) and not force_write:
