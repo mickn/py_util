@@ -2,9 +2,6 @@
 collected tools for database-like interactions with google spreadsheets
 '''
 
-EMAIL = 'fixedbydrift@gmail.com'
-PASS = 'fidomail'
-
 import os, sys, re, numpy, gzip
 import gdata.spreadsheet.service
 
